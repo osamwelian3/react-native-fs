@@ -625,6 +625,66 @@ public class RNFSManager extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void lstat(String filepath, Promise promise) {
+    try {
+      String originalFilepath = getOriginalFilepath(filepath, true);
+
+      new AsyncTask<String, Integer, Integer>() {
+            @Override
+            protected Integer doInBackground(String ...args) {
+                WritableArray res = Arguments.createArray();
+                if(args[0] == null) {
+                    reject(promise, filepath, new Exception("the path specified for lstat is either `null` or `undefined`."));
+                    return 0;
+                }
+                File src = new File(args[0]);
+                if(!src.exists()) {
+                    reject(promise, filepath, new Exception("failed to lstat path `" + args[0] + "` because it does not exist or it is not a folder"));
+                    return 0;
+                }
+                if(src.isDirectory()) {
+                    String [] files = src.list();
+                    // File => list(): "If this abstract pathname does not denote a directory, then this method returns null."
+                    // We excluded that possibility above - ignore the "can produce NullPointerException" warning of the IDE.
+                    for(String p : files) {
+                        res.pushMap(statFile(src.getPath() + "/" + p, promise));
+                    }
+                }
+                else {
+                    res.pushMap(statFile(src.getAbsolutePath(), promise));
+                }
+                promise.resolve(res);
+                return 0;
+            }
+        }.execute(originalFilepath);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      reject(promise, filepath, ex);
+    }
+  }
+
+  public WritableMap statFile(String filepath, Promise promise) {
+    try {
+      String originalFilepath = getOriginalFilepath(filepath, true);
+      File file = new File(originalFilepath);
+
+      if (!file.exists()) throw new Exception("File does not exist");
+
+      WritableMap statMap = Arguments.createMap();
+      statMap.putInt("ctime", (int) (file.lastModified() / 1000));
+      statMap.putInt("mtime", (int) (file.lastModified() / 1000));
+      statMap.putDouble("size", (double) file.length());
+      statMap.putInt("type", file.isDirectory() ? 1 : 0);
+      statMap.putString("originalFilepath", originalFilepath);
+
+      return statMap;
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return null;
+    }
+  }
+
+  @ReactMethod
   public void stat(String filepath, Promise promise) {
     try {
       String originalFilepath = getOriginalFilepath(filepath, true);
@@ -699,7 +759,11 @@ public class RNFSManager extends ReactContextBaseJavaModule {
   @ReactMethod
   public void downloadFile(final ReadableMap options, final Promise promise) {
     try {
+      System.out.println("HepiLog file path: "+options.getString("toFile"));
       File file = new File(options.getString("toFile"));
+      file.getParentFile().mkdirs();
+      file.createNewFile();
+      System.out.println("HepiLog file exists: "+file.exists());
       URL url = new URL(options.getString("fromUrl"));
       final int jobId = options.getInt("jobId");
       ReadableMap headers = options.getMap("headers");

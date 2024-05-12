@@ -102,7 +102,9 @@ public class Downloader extends AsyncTask<DownloadParams, long[], DownloadResult
         }
 
         input = new BufferedInputStream(connection.getInputStream(), 8 * 1024);
+        System.out.println("HepiLog dest: "+param.dest);
         output = new FileOutputStream(param.dest);
+        System.out.println("HepiLog dest 2: "+param.dest);
 
         byte data[] = new byte[8 * 1024];
         long total = 0;
@@ -136,8 +138,10 @@ public class Downloader extends AsyncTask<DownloadParams, long[], DownloadResult
               }
             }
           }
-
+          
+          System.out.println("HepiLog dest 3: "+param.dest);
           output.write(data, 0, count);
+          System.out.println("HepiLog dest 4: "+param.dest);
         }
 
         output.flush();
